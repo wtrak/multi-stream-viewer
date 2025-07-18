@@ -4,7 +4,8 @@
   <title>Multi-Stream Viewer</title>
   <style>
     body { font-family: sans-serif; text-align: center; background: #111; color: white; }
-    video { width: 80%; max-width: 1000px; margin: 20px 0; border: 2px solid #444; }
+    #videoContainer { width: 80%; max-width: 1000px; margin: 20px auto; }
+    video, iframe { width: 100%; height: 562px; border: 2px solid #444; display: none; }
     .button-row, .custom-row { margin: 10px; }
     button {
       margin: 5px;
@@ -31,11 +32,14 @@
 
   <h1>Live Event Multi-Stream Viewer</h1>
 
-  <video id="mainVideo" controls autoplay muted></video>
+  <div id="videoContainer">
+    <video id="mainVideo" controls autoplay muted></video>
+    <iframe id="mainIframe" allowfullscreen></iframe>
+  </div>
 
   <div class="button-row" id="videoButtons"></div>
   <div class="custom-row">
-    <input type="text" id="customVideoInput" placeholder="Paste custom video stream URL">
+    <input type="text" id="customVideoInput" placeholder="Paste Twitch, YouTube, or .m3u8 video URL">
     <button onclick="loadCustomVideo()">Load Custom Video</button>
   </div>
 
@@ -46,7 +50,6 @@
     <button onclick="loadCustomAudio()">Load Custom Audio</button>
   </div>
 
-  <!-- Audio elements -->
   <audio id="audio0" autoplay loop></audio>
   <audio id="audio1" autoplay loop muted></audio>
 
@@ -65,40 +68,37 @@
     ];
 
     const videoElement = document.getElementById('mainVideo');
+    const iframeElement = document.getElementById('mainIframe');
+    const videoButtonsContainer = document.getElementById('videoButtons');
     const audioElements = [document.getElementById('audio0'), document.getElementById('audio1')];
 
-    // === Init Video Buttons ===
-    const videoButtonsContainer = document.getElementById('videoButtons');
     videoSources.forEach((src, idx) => {
       const btn = document.createElement('button');
       btn.textContent = `Camera ${idx + 1}`;
       btn.onclick = () => switchVideo(src, btn);
       videoButtonsContainer.appendChild(btn);
-      if (idx === 0) switchVideo(src, btn); // Default load
+      if (idx === 0) switchVideo(src, btn); // Load first video by default
     });
 
     function switchVideo(src, button) {
-      videoElement.src = src;
+      if (isEmbeddableIframe(src)) {
+        iframeElement.src = convertToEmbedURL(src);
+        iframeElement.style.display = "block";
+        videoElement.style.display = "none";
+      } else {
+        videoElement.src = src;
+        videoElement.style.display = "block";
+        iframeElement.style.display = "none";
+      }
+
       [...videoButtonsContainer.children].forEach(btn => btn.classList.remove('active'));
       if (button) button.classList.add('active');
     }
 
     function loadCustomVideo() {
-      const url = document.getElementById('customVideoInput').value;
+      const url = document.getElementById('customVideoInput').value.trim();
       if (url) switchVideo(url, null);
     }
-
-    // === Init Audio Buttons ===
-    const audioButtonsContainer = document.getElementById('audioButtons');
-    audioSources.forEach((src, idx) => {
-      const audio = audioElements[idx];
-      audio.src = src;
-
-      const btn = document.createElement('button');
-      btn.textContent = `Audio ${idx + 1}`;
-      btn.onclick = () => toggleAudio(idx, btn);
-      audioButtonsContainer.appendChild(btn);
-    });
 
     function toggleAudio(index, button) {
       const audio = audioElements[index];
@@ -108,10 +108,9 @@
     }
 
     function loadCustomAudio() {
-      const url = document.getElementById('customAudioInput').value;
+      const url = document.getElementById('customAudioInput').value.trim();
       if (!url) return;
 
-      // Find first available audio slot
       for (let i = 0; i < audioElements.length; i++) {
         if (audioElements[i].paused || audioElements[i].src === "") {
           audioElements[i].src = url;
@@ -121,10 +120,29 @@
         }
       }
 
-      // If all slots are full, override the first one
       audioElements[0].src = url;
       audioElements[0].muted = false;
       audioElements[0].play();
+    }
+
+    function isEmbeddableIframe(url) {
+      return url.includes("twitch.tv") || url.includes("youtube.com") || url.includes("youtu.be");
+    }
+
+    function convertToEmbedURL(url) {
+      if (url.includes("twitch.tv")) {
+        const channel = url.split("twitch.tv/")[1].split("/")[0];
+        return `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}`;
+      }
+      if (url.includes("youtube.com/watch?v=")) {
+        const videoId = url.split("v=")[1].split("&")[0];
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+      if (url.includes("youtu.be/")) {
+        const videoId = url.split("youtu.be/")[1];
+        return `https://www.youtube.com/embed/${videoId}`;
+      }
+      return url;
     }
   </script>
 
