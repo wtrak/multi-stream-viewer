@@ -4,8 +4,8 @@
   <title>Multi-Stream Viewer</title>
   <style>
     body { font-family: sans-serif; text-align: center; background: #111; color: white; }
-    #videoContainer { width: 80%; max-width: 1000px; margin: 20px auto; }
-    video, iframe { width: 100%; height: 562px; border: 2px solid #444; display: none; }
+    .video-container, .audio-container { margin: 20px auto; width: 80%; max-width: 1000px; position: relative; }
+    video, iframe { width: 100%; height: 562px; display: none; border: 2px solid #444; }
     .button-row, .custom-row { margin: 10px; }
     button {
       margin: 5px;
@@ -30,99 +30,129 @@
 </head>
 <body>
 
-  <h1>Live Event Multi-Stream Viewer</h1>
-
-  <div id="videoContainer">
-    <video id="mainVideo" controls autoplay muted></video>
-    <iframe id="mainIframe" allowfullscreen></iframe>
-  </div>
+  <h1>Multi-Stream Viewer with YouTube & Twitch Support</h1>
 
   <div class="button-row" id="videoButtons"></div>
-  <div class="custom-row">
-    <input type="text" id="customVideoInput" placeholder="Paste Twitch, YouTube, or .m3u8 video URL">
-    <button onclick="loadCustomVideo()">Load Custom Video</button>
+  <div id="videoInputs" class="custom-row"></div>
+
+  <div class="video-container" id="videoContainer">
+    <video id="video0" autoplay muted playsinline></video>
+    <video id="video1" autoplay muted playsinline style="display:none;"></video>
+    <video id="video2" autoplay muted playsinline style="display:none;"></video>
+    <video id="video3" autoplay muted playsinline style="display:none;"></video>
+    <video id="video4" autoplay muted playsinline style="display:none;"></video>
+
+    <iframe id="iframe0" allowfullscreen style="display:none;"></iframe>
+    <iframe id="iframe1" allowfullscreen style="display:none;"></iframe>
+    <iframe id="iframe2" allowfullscreen style="display:none;"></iframe>
+    <iframe id="iframe3" allowfullscreen style="display:none;"></iframe>
+    <iframe id="iframe4" allowfullscreen style="display:none;"></iframe>
   </div>
 
   <h3>Audio Channels</h3>
   <div class="button-row" id="audioButtons"></div>
-  <div class="custom-row">
-    <input type="text" id="customAudioInput" placeholder="Paste custom audio stream URL">
-    <button onclick="loadCustomAudio()">Load Custom Audio</button>
-  </div>
+  <div id="audioInputs" class="custom-row"></div>
 
-  <audio id="audio0" autoplay loop></audio>
+  <audio id="audio0" autoplay loop muted></audio>
   <audio id="audio1" autoplay loop muted></audio>
 
   <script>
-    const videoSources = [
-      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
-      'https://mojen.webcamera.pl/warszawa2.m3u8',
-      'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
-      'https://test-streams.mux.dev/test_001/stream.m3u8',
-      'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8'
-    ];
+    const NUM_VIDEOS = 5;
+    const NUM_AUDIOS = 2;
 
-    const audioSources = [
-      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
-    ];
+    let activeVideoIndex = 0;
+    const videoElements = [];
 
-    const videoElement = document.getElementById('mainVideo');
-    const iframeElement = document.getElementById('mainIframe');
     const videoButtonsContainer = document.getElementById('videoButtons');
-    const audioElements = [document.getElementById('audio0'), document.getElementById('audio1')];
+    const videoInputsContainer = document.getElementById('videoInputs');
 
-    videoSources.forEach((src, idx) => {
+    for (let i = 0; i < NUM_VIDEOS; i++) {
+      const video = document.getElementById('video' + i);
+      const iframe = document.getElementById('iframe' + i);
+      videoElements.push({ video, iframe });
+
       const btn = document.createElement('button');
-      btn.textContent = `Camera ${idx + 1}`;
-      btn.onclick = () => switchVideo(src, btn);
+      btn.textContent = `Camera ${i + 1}`;
+      btn.onclick = () => switchVideo(i, btn);
       videoButtonsContainer.appendChild(btn);
-      if (idx === 0) switchVideo(src, btn); // Load first video by default
-    });
 
-    function switchVideo(src, button) {
-      if (isEmbeddableIframe(src)) {
-        iframeElement.src = convertToEmbedURL(src);
-        iframeElement.style.display = "block";
-        videoElement.style.display = "none";
-      } else {
-        videoElement.src = src;
-        videoElement.style.display = "block";
-        iframeElement.style.display = "none";
-      }
+      const input = document.createElement('input');
+      input.type = "text";
+      input.placeholder = `Video URL for Camera ${i + 1}`;
+      input.id = `videoInput${i}`;
 
-      [...videoButtonsContainer.children].forEach(btn => btn.classList.remove('active'));
-      if (button) button.classList.add('active');
+      const loadBtn = document.createElement('button');
+      loadBtn.textContent = "Load";
+      loadBtn.onclick = () => {
+        const url = document.getElementById(`videoInput${i}`).value.trim();
+        if (!url) return;
+        if (isEmbeddableIframe(url)) {
+          video.src = "";
+          iframe.src = convertToEmbedURL(url);
+          video.style.display = "none";
+          iframe.style.display = "none"; // will be shown when activated
+        } else {
+          iframe.src = "";
+          video.src = url;
+          video.load();
+          video.play();
+          video.style.display = "none"; // will be shown when activated
+        }
+      };
+
+      videoInputsContainer.appendChild(input);
+      videoInputsContainer.appendChild(loadBtn);
     }
 
-    function loadCustomVideo() {
-      const url = document.getElementById('customVideoInput').value.trim();
-      if (url) switchVideo(url, null);
+    function switchVideo(index, button) {
+      videoElements.forEach((el, i) => {
+        el.video.style.display = 'none';
+        el.iframe.style.display = 'none';
+        if (i === index) {
+          if (el.video.src) el.video.style.display = 'block';
+          if (el.iframe.src) el.iframe.style.display = 'block';
+        }
+      });
+      [...videoButtonsContainer.children].forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+      activeVideoIndex = index;
+    }
+
+    const audioElements = [document.getElementById('audio0'), document.getElementById('audio1')];
+    const audioButtonsContainer = document.getElementById('audioButtons');
+    const audioInputsContainer = document.getElementById('audioInputs');
+
+    for (let i = 0; i < NUM_AUDIOS; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = `Audio ${i + 1}`;
+      btn.onclick = () => toggleAudio(i, btn);
+      audioButtonsContainer.appendChild(btn);
+
+      const input = document.createElement('input');
+      input.type = "text";
+      input.placeholder = `Audio URL ${i + 1}`;
+      input.id = `audioInput${i}`;
+
+      const loadBtn = document.createElement('button');
+      loadBtn.textContent = "Load";
+      loadBtn.onclick = () => {
+        const url = document.getElementById(`audioInput${i}`).value.trim();
+        if (url) {
+          const audio = audioElements[i];
+          audio.src = url;
+          audio.load();
+          audio.play();
+        }
+      };
+
+      audioInputsContainer.appendChild(input);
+      audioInputsContainer.appendChild(loadBtn);
     }
 
     function toggleAudio(index, button) {
       const audio = audioElements[index];
-      const isMuted = audio.muted;
-      audio.muted = !isMuted;
-      button.classList.toggle('active', !isMuted);
-    }
-
-    function loadCustomAudio() {
-      const url = document.getElementById('customAudioInput').value.trim();
-      if (!url) return;
-
-      for (let i = 0; i < audioElements.length; i++) {
-        if (audioElements[i].paused || audioElements[i].src === "") {
-          audioElements[i].src = url;
-          audioElements[i].muted = false;
-          audioElements[i].play();
-          return;
-        }
-      }
-
-      audioElements[0].src = url;
-      audioElements[0].muted = false;
-      audioElements[0].play();
+      audio.muted = !audio.muted;
+      button.classList.toggle('active', !audio.muted);
     }
 
     function isEmbeddableIframe(url) {
@@ -144,6 +174,9 @@
       }
       return url;
     }
+
+    // Default to first camera
+    switchVideo(0, videoButtonsContainer.children[0]);
   </script>
 
 </body>
