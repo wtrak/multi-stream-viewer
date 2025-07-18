@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -6,7 +5,7 @@
   <style>
     body { font-family: sans-serif; text-align: center; background: #111; color: white; }
     video { width: 80%; max-width: 1000px; margin: 20px 0; border: 2px solid #444; }
-    .button-row { margin: 10px; }
+    .button-row, .custom-row { margin: 10px; }
     button {
       margin: 5px;
       padding: 10px 20px;
@@ -20,6 +19,12 @@
       background: #4caf50;
       border-color: #4caf50;
     }
+    input[type="text"] {
+      padding: 8px;
+      width: 300px;
+      font-size: 14px;
+      margin-right: 8px;
+    }
   </style>
 </head>
 <body>
@@ -29,48 +34,61 @@
   <video id="mainVideo" controls autoplay muted></video>
 
   <div class="button-row" id="videoButtons"></div>
+  <div class="custom-row">
+    <input type="text" id="customVideoInput" placeholder="Paste custom video stream URL">
+    <button onclick="loadCustomVideo()">Load Custom Video</button>
+  </div>
+
   <h3>Audio Channels</h3>
   <div class="button-row" id="audioButtons"></div>
+  <div class="custom-row">
+    <input type="text" id="customAudioInput" placeholder="Paste custom audio stream URL">
+    <button onclick="loadCustomAudio()">Load Custom Audio</button>
+  </div>
 
   <!-- Audio elements -->
   <audio id="audio0" autoplay loop></audio>
   <audio id="audio1" autoplay loop muted></audio>
 
   <script>
-    // === 1. DROP YOUR VIDEO AND AUDIO STREAM LINKS HERE ===
     const videoSources = [
-      'https://www.twitch.tv/freestyle_chess_board3',
-      'https://www.twitch.tv/freestyle_chess_board4',
-      'https://www.youtube.com/watch?v=pLsV1Dd7tKI',
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      'https://mojen.webcamera.pl/warszawa2.m3u8',
+      'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
       'https://test-streams.mux.dev/test_001/stream.m3u8',
       'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8'
     ];
 
     const audioSources = [
-      'https://www.youtube.com/watch?v=nfFSgnbDDKE',
-      'https://www.youtube.com/watch?v=ayGOzE_wb10'
+      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
     ];
 
     const videoElement = document.getElementById('mainVideo');
     const audioElements = [document.getElementById('audio0'), document.getElementById('audio1')];
 
-    // === 2. INIT VIDEO BUTTONS ===
+    // === Init Video Buttons ===
     const videoButtonsContainer = document.getElementById('videoButtons');
     videoSources.forEach((src, idx) => {
       const btn = document.createElement('button');
       btn.textContent = `Camera ${idx + 1}`;
       btn.onclick = () => switchVideo(src, btn);
       videoButtonsContainer.appendChild(btn);
-      if (idx === 0) switchVideo(src, btn); // Load first video by default
+      if (idx === 0) switchVideo(src, btn); // Default load
     });
 
     function switchVideo(src, button) {
       videoElement.src = src;
       [...videoButtonsContainer.children].forEach(btn => btn.classList.remove('active'));
-      button.classList.add('active');
+      if (button) button.classList.add('active');
     }
 
-    // === 3. INIT AUDIO BUTTONS ===
+    function loadCustomVideo() {
+      const url = document.getElementById('customVideoInput').value;
+      if (url) switchVideo(url, null);
+    }
+
+    // === Init Audio Buttons ===
     const audioButtonsContainer = document.getElementById('audioButtons');
     audioSources.forEach((src, idx) => {
       const audio = audioElements[idx];
@@ -87,6 +105,26 @@
       const isMuted = audio.muted;
       audio.muted = !isMuted;
       button.classList.toggle('active', !isMuted);
+    }
+
+    function loadCustomAudio() {
+      const url = document.getElementById('customAudioInput').value;
+      if (!url) return;
+
+      // Find first available audio slot
+      for (let i = 0; i < audioElements.length; i++) {
+        if (audioElements[i].paused || audioElements[i].src === "") {
+          audioElements[i].src = url;
+          audioElements[i].muted = false;
+          audioElements[i].play();
+          return;
+        }
+      }
+
+      // If all slots are full, override the first one
+      audioElements[0].src = url;
+      audioElements[0].muted = false;
+      audioElements[0].play();
     }
   </script>
 
