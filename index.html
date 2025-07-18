@@ -1,14 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Multi-Stream Viewer</title>
+  <title>Unified Multi-Stream Viewer</title>
   <style>
     body { font-family: sans-serif; text-align: center; background: #111; color: white; }
-    .video-container, .audio-container { margin: 20px auto; width: 80%; max-width: 1000px; position: relative; }
-    video, iframe { width: 100%; height: 562px; display: none; border: 2px solid #444; }
-    .button-row, .custom-row { margin: 10px; }
+    .video-container { margin: 20px auto; width: 80%; max-width: 1000px; position: relative; }
+    video {
+      width: 100%;
+      height: auto;
+      display: none;
+      border: 2px solid #444;
+      background: black;
+    }
+    .button-row, .custom-row { margin: 10px; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
     button {
-      margin: 5px;
       padding: 10px 20px;
       font-size: 16px;
       background: #222;
@@ -24,159 +29,103 @@
       padding: 8px;
       width: 300px;
       font-size: 14px;
-      margin-right: 8px;
     }
   </style>
 </head>
 <body>
 
-  <h1>Multi-Stream Viewer with YouTube & Twitch Support</h1>
+  <h1>Multi-Stream Viewer (All Video, Seamless Switching)</h1>
 
   <div class="button-row" id="videoButtons"></div>
   <div id="videoInputs" class="custom-row"></div>
 
   <div class="video-container" id="videoContainer">
-    <video id="video0" autoplay muted playsinline></video>
-    <video id="video1" autoplay muted playsinline style="display:none;"></video>
-    <video id="video2" autoplay muted playsinline style="display:none;"></video>
-    <video id="video3" autoplay muted playsinline style="display:none;"></video>
-    <video id="video4" autoplay muted playsinline style="display:none;"></video>
-
-    <iframe id="iframe0" allowfullscreen style="display:none;"></iframe>
-    <iframe id="iframe1" allowfullscreen style="display:none;"></iframe>
-    <iframe id="iframe2" allowfullscreen style="display:none;"></iframe>
-    <iframe id="iframe3" allowfullscreen style="display:none;"></iframe>
-    <iframe id="iframe4" allowfullscreen style="display:none;"></iframe>
+    <video id="stream0" autoplay muted playsinline></video>
+    <video id="stream1" autoplay muted playsinline></video>
+    <video id="stream2" autoplay muted playsinline></video>
+    <video id="stream3" autoplay muted playsinline></video>
+    <video id="stream4" autoplay muted playsinline></video>
+    <video id="stream5" autoplay muted playsinline></video>
+    <video id="stream6" autoplay muted playsinline></video>
   </div>
 
-  <h3>Audio Channels</h3>
+  <h3>Audio Channels (Pick One to Unmute)</h3>
   <div class="button-row" id="audioButtons"></div>
-  <div id="audioInputs" class="custom-row"></div>
-
-  <audio id="audio0" autoplay loop muted></audio>
-  <audio id="audio1" autoplay loop muted></audio>
 
   <script>
-    const NUM_VIDEOS = 5;
-    const NUM_AUDIOS = 2;
+    const NUM_STREAMS = 7; // 0–4 = video views, 5–6 = audio-only
+    const VIDEO_VIEW_COUNT = 5;
 
-    let activeVideoIndex = 0;
-    const videoElements = [];
-
+    const streamElements = [];
     const videoButtonsContainer = document.getElementById('videoButtons');
     const videoInputsContainer = document.getElementById('videoInputs');
+    const audioButtonsContainer = document.getElementById('audioButtons');
 
-    for (let i = 0; i < NUM_VIDEOS; i++) {
-      const video = document.getElementById('video' + i);
-      const iframe = document.getElementById('iframe' + i);
-      videoElements.push({ video, iframe });
+    let activeVideoIndex = 0;
+    let activeAudioIndex = null;
 
-      const btn = document.createElement('button');
-      btn.textContent = `Camera ${i + 1}`;
-      btn.onclick = () => switchVideo(i, btn);
-      videoButtonsContainer.appendChild(btn);
+    for (let i = 0; i < NUM_STREAMS; i++) {
+      const video = document.getElementById('stream' + i);
+      streamElements.push(video);
 
       const input = document.createElement('input');
       input.type = "text";
-      input.placeholder = `Video URL for Camera ${i + 1}`;
-      input.id = `videoInput${i}`;
+      input.placeholder = `Stream URL for ${i < VIDEO_VIEW_COUNT ? "Camera" : "Audio"} ${i < VIDEO_VIEW_COUNT ? i + 1 : i - VIDEO_VIEW_COUNT + 1}`;
+      input.id = `streamInput${i}`;
 
       const loadBtn = document.createElement('button');
       loadBtn.textContent = "Load";
       loadBtn.onclick = () => {
-        const url = document.getElementById(`videoInput${i}`).value.trim();
-        if (!url) return;
-        if (isEmbeddableIframe(url)) {
-          video.src = "";
-          iframe.src = convertToEmbedURL(url);
-          video.style.display = "none";
-          iframe.style.display = "none"; // will be shown when activated
-        } else {
-          iframe.src = "";
+        const url = document.getElementById(`streamInput${i}`).value.trim();
+        if (url) {
           video.src = url;
           video.load();
-          video.play();
-          video.style.display = "none"; // will be shown when activated
+          video.play().catch(e => console.log("Autoplay error:", e));
         }
       };
 
       videoInputsContainer.appendChild(input);
       videoInputsContainer.appendChild(loadBtn);
+
+      if (i < VIDEO_VIEW_COUNT) {
+        const btn = document.createElement('button');
+        btn.textContent = `Camera ${i + 1}`;
+        btn.onclick = () => switchCamera(i, btn);
+        videoButtonsContainer.appendChild(btn);
+      } else {
+        const btn = document.createElement('button');
+        btn.textContent = `Audio ${i - VIDEO_VIEW_COUNT + 1}`;
+        btn.onclick = () => toggleAudio(i, btn);
+        audioButtonsContainer.appendChild(btn);
+      }
     }
 
-    function switchVideo(index, button) {
-      videoElements.forEach((el, i) => {
-        el.video.style.display = 'none';
-        el.iframe.style.display = 'none';
-        if (i === index) {
-          if (el.video.src) el.video.style.display = 'block';
-          if (el.iframe.src) el.iframe.style.display = 'block';
-        }
+    function switchCamera(index, button) {
+      streamElements.forEach((el, i) => {
+        el.style.display = (i === index) ? "block" : "none";
+        el.muted = (i !== index && i !== activeAudioIndex);
       });
       [...videoButtonsContainer.children].forEach(btn => btn.classList.remove('active'));
       button.classList.add('active');
       activeVideoIndex = index;
     }
 
-    const audioElements = [document.getElementById('audio0'), document.getElementById('audio1')];
-    const audioButtonsContainer = document.getElementById('audioButtons');
-    const audioInputsContainer = document.getElementById('audioInputs');
-
-    for (let i = 0; i < NUM_AUDIOS; i++) {
-      const btn = document.createElement('button');
-      btn.textContent = `Audio ${i + 1}`;
-      btn.onclick = () => toggleAudio(i, btn);
-      audioButtonsContainer.appendChild(btn);
-
-      const input = document.createElement('input');
-      input.type = "text";
-      input.placeholder = `Audio URL ${i + 1}`;
-      input.id = `audioInput${i}`;
-
-      const loadBtn = document.createElement('button');
-      loadBtn.textContent = "Load";
-      loadBtn.onclick = () => {
-        const url = document.getElementById(`audioInput${i}`).value.trim();
-        if (url) {
-          const audio = audioElements[i];
-          audio.src = url;
-          audio.load();
-          audio.play();
-        }
-      };
-
-      audioInputsContainer.appendChild(input);
-      audioInputsContainer.appendChild(loadBtn);
-    }
-
     function toggleAudio(index, button) {
-      const audio = audioElements[index];
-      audio.muted = !audio.muted;
-      button.classList.toggle('active', !audio.muted);
+      if (activeAudioIndex !== null) {
+        streamElements[activeAudioIndex].muted = true;
+        audioButtonsContainer.children[activeAudioIndex - VIDEO_VIEW_COUNT].classList.remove("active");
+      }
+      if (activeAudioIndex === index) {
+        activeAudioIndex = null;
+      } else {
+        activeAudioIndex = index;
+        streamElements[index].muted = false;
+        button.classList.add("active");
+      }
     }
 
-    function isEmbeddableIframe(url) {
-      return url.includes("twitch.tv") || url.includes("youtube.com") || url.includes("youtu.be");
-    }
-
-    function convertToEmbedURL(url) {
-      if (url.includes("twitch.tv")) {
-        const channel = url.split("twitch.tv/")[1].split("/")[0];
-        return `https://player.twitch.tv/?channel=${channel}&parent=${location.hostname}`;
-      }
-      if (url.includes("youtube.com/watch?v=")) {
-        const videoId = url.split("v=")[1].split("&")[0];
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-      if (url.includes("youtu.be/")) {
-        const videoId = url.split("youtu.be/")[1];
-        return `https://www.youtube.com/embed/${videoId}`;
-      }
-      return url;
-    }
-
-    // Default to first camera
-    switchVideo(0, videoButtonsContainer.children[0]);
+    // Default show first camera
+    switchCamera(0, videoButtonsContainer.children[0]);
   </script>
 
 </body>
