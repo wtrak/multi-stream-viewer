@@ -1,0 +1,94 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Multi-Stream Viewer</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #111; color: white; }
+    video { width: 80%; max-width: 1000px; margin: 20px 0; border: 2px solid #444; }
+    .button-row { margin: 10px; }
+    button {
+      margin: 5px;
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #222;
+      color: white;
+      border: 1px solid #555;
+      cursor: pointer;
+    }
+    button.active {
+      background: #4caf50;
+      border-color: #4caf50;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Live Event Multi-Stream Viewer</h1>
+
+  <video id="mainVideo" controls autoplay muted></video>
+
+  <div class="button-row" id="videoButtons"></div>
+  <h3>Audio Channels</h3>
+  <div class="button-row" id="audioButtons"></div>
+
+  <!-- Audio elements -->
+  <audio id="audio0" autoplay loop></audio>
+  <audio id="audio1" autoplay loop muted></audio>
+
+  <script>
+    // === 1. DROP YOUR VIDEO AND AUDIO STREAM LINKS HERE ===
+    const videoSources = [
+      'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+      'https://mojen.webcamera.pl/warszawa2.m3u8',
+      'https://cph-p2p-msl.akamaized.net/hls/live/2000341/test/master.m3u8',
+      'https://test-streams.mux.dev/test_001/stream.m3u8',
+      'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8'
+    ];
+
+    const audioSources = [
+      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+      'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3'
+    ];
+
+    const videoElement = document.getElementById('mainVideo');
+    const audioElements = [document.getElementById('audio0'), document.getElementById('audio1')];
+
+    // === 2. INIT VIDEO BUTTONS ===
+    const videoButtonsContainer = document.getElementById('videoButtons');
+    videoSources.forEach((src, idx) => {
+      const btn = document.createElement('button');
+      btn.textContent = `Camera ${idx + 1}`;
+      btn.onclick = () => switchVideo(src, btn);
+      videoButtonsContainer.appendChild(btn);
+      if (idx === 0) switchVideo(src, btn); // Load first video by default
+    });
+
+    function switchVideo(src, button) {
+      videoElement.src = src;
+      [...videoButtonsContainer.children].forEach(btn => btn.classList.remove('active'));
+      button.classList.add('active');
+    }
+
+    // === 3. INIT AUDIO BUTTONS ===
+    const audioButtonsContainer = document.getElementById('audioButtons');
+    audioSources.forEach((src, idx) => {
+      const audio = audioElements[idx];
+      audio.src = src;
+
+      const btn = document.createElement('button');
+      btn.textContent = `Audio ${idx + 1}`;
+      btn.onclick = () => toggleAudio(idx, btn);
+      audioButtonsContainer.appendChild(btn);
+    });
+
+    function toggleAudio(index, button) {
+      const audio = audioElements[index];
+      const isMuted = audio.muted;
+      audio.muted = !isMuted;
+      button.classList.toggle('active', !isMuted);
+    }
+  </script>
+
+</body>
+</html>
